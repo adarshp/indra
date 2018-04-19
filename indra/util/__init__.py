@@ -4,6 +4,8 @@ import sys
 import csv
 import gzip
 import zlib
+from itertools import repeat, accumulate, islice, chain
+from functools import reduce
 from io import BytesIO
 import xml.etree.ElementTree as ET
 
@@ -186,6 +188,99 @@ def fast_deepcopy(obj):
         obj_new = pickle.load(buf)
     return obj_new
 
+# Functional programming helpers
+def prepend(x, xs):
+    """ Prepend a value to an iterable.
+
+    Parameters
+    ----------
+    x
+        An element of type T.
+    xs
+        An iterable of elements of type T.
+
+    Returns
+    -------
+    Iterator
+        An iterator that yields *x* followed by elements of *xs*.
+
+    Examples
+    --------
+
+    >>> from delphi.utils import prepend
+    >>> list(prepend(1, [2, 3]))
+    [1, 2, 3]
+
+    """
+    return chain([x], xs)
+
+def scanl(f: Callable[[T, U], T], x: T, xs: Iterable[U]) -> Iterator[T]:
+    """ Make an iterator that returns accumulated results of a binary function
+    applied to elements of an iterable.
+
+    .. math::
+        scanl(f, x_0, [x_1, x_2, ...]) = [x_0, f(x_0, x_1), f(f(x_0, x_1), x_2), ...]
+
+    Parameters
+    ----------
+    f
+        A binary function of two arguments of type T.
+    x
+        An initializer element of type T.
+    xs
+        An iterable of elements of type T. 
+
+    Returns
+    -------
+    Iterator
+        The iterator of accumulated results.
+
+
+    Examples
+    --------
+    >>> from delphi.utils import scanl
+    >>> list(scanl(lambda x, y: x + y, 10, range(5)))
+    [10, 10, 11, 13, 16, 20]
+
+    """
+
+    return accumulate(prepend(x, xs), f)
+
+def foldl(f, x, xs):
+    """ Returns the accumulated result of a binary function applied to elements
+    of an iterable.
+
+    .. math::
+        foldl(f, x_0, [x_1, x_2, x_3]) = f(f(f(f(x_0), x_1), x_2), x_3)
+
+
+    Examples
+    --------
+    >>> from delphi.utils import foldl
+    >>> foldl(lambda x, y: x + y, 10, range(5))
+    20
+
+    """
+    return reduce(f, xs, x)
+
+
+def foldl1(f, xs):
+    """ Returns the accumulated result of a binary function applied to elements
+    of an iterable.
+
+    .. math::
+        foldl1(f, [x_0, x_1, x_2, x_3]) = f(f(f(f(x_0), x_1), x_2), x_3)
+
+
+    Examples
+    --------
+    >>> from delphi.utils import foldl1
+    >>> foldl1(lambda x, y: x + y, range(5))
+    10
+    """
+
+    return reduce(f, xs)
+
 def lmap(f, xs):
     """A non-lazy version of map."""
     return list(map(f, xs))
@@ -194,6 +289,35 @@ def flatten(l):
     """Flatten a nested list."""
     return sum(map(flatten, l), []) \
         if isinstance(l, list) or isinstance(l, tuple) else [l]
+
+def take(n, xs):
+    return islice(xs, n)
+
+def ltake(n, xs):
+    """ A non-lazy version of take. """
+    return list(take(n, xs))
+
+def iterate(f, x):
+    """ Makes infinite iterator that returns the result of successive
+    applications of a function to an element
+
+    .. math::
+        iterate(f, x) = [x, f(x), f(f(x)), f(f(f(x))), ...]
+
+    Examples
+    --------
+    >>> from indra.util import iterate, take
+    >>> list(take(5, iterate(lambda x: x*2, 1)))
+    [1, 2, 4, 8, 16]
+    """
+    return scanl(lambda x, _: f(x), x, repeat(None))
+
+def compose(*fs):
+    """ Compose functions from left to right.
+
+    e.g. compose(f, g)(x) = f(g(x))
+    """
+    return foldl1(lambda f, g: lambda x: f(g(x)), fs)
 
 def flatMap(f, xs):
     """Map a function onto an iterable and flatten the result."""
