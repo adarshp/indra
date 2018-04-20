@@ -31,7 +31,6 @@ get_units = lambda x: 'units'
 adjectiveData = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              'adjectiveData.tsv')
 
-def export_edge_date(e):
 def _get_adjective(gb, delta):
     """ Get the first adjective from subj_delta or obj_delta """
 
